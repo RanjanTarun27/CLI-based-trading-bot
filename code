@@ -1,1 +1,122 @@
+# ⬇️ Install required library
+!pip install python-binance
+
+# 📚 Import modules
+import logging
+from binance.client import Client
+from binance.enums import *
+from getpass import getpass
+
+# 🔐 Set up API keys securely
+api_key = getpass("Enter your Binance API Key: ")
+api_secret = getpass("Enter your Binance API Secret: ")
+
+# ⚙️ Initialize Client
+client = Client(api_key, api_secret, testnet=True)
+
+# 📁 Setup Logging
+logging.basicConfig(filename="binance_trading_bot.log", level=logging.INFO,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
+
+# ✅ Validation helpers
+def validate_symbol(symbol):
+    try:
+        info = client.get_symbol_info(symbol)
+        return info is not None
+    except:
+        return False
+
+def validate_quantity(symbol, qty):
+    try:
+        filters = client.get_symbol_info(symbol)["filters"]
+        lot_size = next(f for f in filters if f["filterType"] == "LOT_SIZE")
+        min_qty = float(lot_size["minQty"])
+        return float(qty) >= min_qty
+    except:
+        return False
+
+# 📌 Place Market Order
+def place_market_order(symbol, side, quantity):
+    try:
+        order = client.futures_create_order(
+            symbol=symbol,
+            side=SIDE_BUY if side == "buy" else SIDE_SELL,
+            type=ORDER_TYPE_MARKET,
+            quantity=quantity
+        )
+        logging.info(f"Market order placed: {order}")
+        return order
+    except Exception as e:
+        logging.error(f"Market Order Error: {e}")
+        print("Error placing market order:", e)
+
+# 📌 Place Limit Order
+def place_limit_order(symbol, side, quantity, price):
+    try:
+        order = client.futures_create_order(
+            symbol=symbol,
+            side=SIDE_BUY if side == "buy" else SIDE_SELL,
+            type=ORDER_TYPE_LIMIT,
+            quantity=quantity,
+            price=str(price),
+            timeInForce=TIME_IN_FORCE_GTC
+        )
+        logging.info(f"Limit order placed: {order}")
+        return order
+    except Exception as e:
+        logging.error(f"Limit Order Error: {e}")
+        print("Error placing limit order:", e)
+
+# 📌 Stop-Limit Order
+def place_stop_limit(symbol, side, quantity, stop_price, limit_price):
+    try:
+        order = client.futures_create_order(
+            symbol=symbol,
+            side=SIDE_BUY if side == "buy" else SIDE_SELL,
+            type=ORDER_TYPE_STOP_MARKET,
+            stopPrice=str(stop_price),
+            quantity=quantity,
+            timeInForce=TIME_IN_FORCE_GTC
+        )
+        logging.info(f"Stop-limit order placed: {order}")
+        return order
+    except Exception as e:
+        logging.error(f"Stop-Limit Order Error: {e}")
+        print("Error placing stop-limit order:", e)
+
+# 🧠 CLI interface
+def main():
+    print("Welcome to Binance USDT-M CLI Bot\n")
+
+    symbol = input("Enter symbol (e.g., BTCUSDT): ").upper()
+    if not validate_symbol(symbol):
+        print("Invalid symbol.")
+        return
+
+    side = input("Buy or Sell? (buy/sell): ").lower()
+    quantity = float(input("Enter quantity: "))
+    if not validate_quantity(symbol, quantity):
+        print("Invalid quantity.")
+        return
+
+    print("\nSelect Order Type:")
+    print("1. Market")
+    print("2. Limit")
+    print("3. Stop-Limit")
+
+    choice = input("Enter your choice: ")
+
+    if choice == "1":
+        place_market_order(symbol, side, quantity)
+    elif choice == "2":
+        price = float(input("Enter limit price: "))
+        place_limit_order(symbol, side, quantity, price)
+    elif choice == "3":
+        stop_price = float(input("Enter stop price: "))
+        place_stop_limit(symbol, side, quantity, stop_price, stop_price)
+    else:
+        print("Invalid choice.")
+
+# 🚀 Run the bot
+main()
 
